@@ -7,7 +7,7 @@ import google.generativeai as genai
 st.set_page_config(page_title="Oto Form Doldurucu", page_icon="📄", layout="centered")
 
 st.title("Yapay Zeka Destekli Otonom Form Doldurucu")
-st.write("Word belgesini yükleyin; sistem boş alanları tespit edip yapay zeka ile otomatik doldursun.")
+st.write("Word belgesini yükleyin; sistem boş alanları tespit edip kişisel bilgilerinizle otomatik doldursun.")
 
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -44,14 +44,21 @@ if yuklenen_dosya is not None:
     if bos_alanlar:
         st.success(f"Belgede {len(bos_alanlar)} adet doldurulacak alan tespit edildi.")
         
-        if st.button("Formu Yapay Zeka ile Otomatik Doldur"):
-            with st.spinner("Yapay zeka bilgileri topluyor ve forma işliyor..."):
+        if st.button("Formu Bilgilerinizle Otomatik Doldur"):
+            with st.spinner("Yapay zeka kişisel verilerinizi kullanarak formu işliyor..."):
                 try:
                     model = genai.GenerativeModel("gemini-3.8-flash")
                     
+                    # Kullanıcı bağlamı
+                    kullanici_baglami = (
+                        "Kişi Bilgileri: Prof. Ufuk Tolga Savaş, "
+                        "Kurum: Hacettepe Üniversitesi Güzel Sanatlar Fakültesi Seramik Bölümü, "
+                        "Unvan: Profesör / Öğretim Üyesi."
+                    )
+                    
                     for alan in bos_alanlar:
                         etiket = alan["etiket"]
-                        prompt = f"Şu kurumsal form alanı için uygun bilgiyi kısa ve net bir şekilde üret: {etiket}"
+                        prompt = f"{kullanici_baglami}\n\nBu bağlamı kullanarak şu form alanı için uygun bilgiyi kısa ve net bir şekilde üret: {etiket}"
                         cevap = model.generate_content(prompt)
                         deger = cevap.text.strip()
                         
@@ -59,7 +66,7 @@ if yuklenen_dosya is not None:
                         hedef_hucre.text = deger
 
                     doc.save(output_path)
-                    st.success("Form başarıyla ve tamamen otomatik olarak dolduruldu.")
+                    st.success("Form başarıyla ve kişisel bilgilerinizle dolduruldu.")
 
                     with open(output_path, "rb") as f:
                         st.download_button(
@@ -72,3 +79,4 @@ if yuklenen_dosya is not None:
                     st.error(f"İşlem sırasında bir hata oluştu: {e}")
     else:
         st.warning("Belgede otomatik tespit edilebilir boş alan bulunamadı.")
+        
