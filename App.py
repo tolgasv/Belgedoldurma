@@ -9,7 +9,6 @@ st.set_page_config(page_title="Oto Form Doldurucu", page_icon="📄", layout="ce
 st.title("Yapay Zeka Destekli Otonom Form Doldurucu")
 st.write("Word belgesini yükleyin; sistem boş alanları tespit edip yapay zeka ile otomatik doldursun.")
 
-# API anahtarı kontrolü
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 else:
@@ -26,7 +25,6 @@ if yuklenen_dosya is not None:
 
     doc = Document(input_path)
 
-    # Boş alanları tespit et
     bos_alanlar = []
     for tablo_idx, table in enumerate(doc.tables):
         for row_idx, row in enumerate(table.rows):
@@ -49,17 +47,14 @@ if yuklenen_dosya is not None:
         if st.button("Formu Yapay Zeka ile Otomatik Doldur"):
             with st.spinner("Yapay zeka bilgileri topluyor ve forma işliyor..."):
                 try:
-                    # Model yapılandırması
-                    model = genai.GenerativeModel("gemini-2.5-flash")
+                    model = genai.GenerativeModel("gemini-3.8-flash")
                     
                     for alan in bos_alanlar:
                         etiket = alan["etiket"]
-                        # Yapay zekadan ilgili alan için veri iste
-                        prompt = f"Şu akademik/kurumsal form alanı için uygun bilgiyi kısa ve net bir şekilde üret: {etiket}"
+                        prompt = f"Şu kurumsal form alanı için uygun bilgiyi kısa ve net bir şekilde üret: {etiket}"
                         cevap = model.generate_content(prompt)
                         deger = cevap.text.strip()
                         
-                        # Hücreye yaz
                         hedef_hucre = doc.tables[alan["tablo"]].cell(alan["satir"], alan["sutun"])
                         hedef_hucre.text = deger
 
