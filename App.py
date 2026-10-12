@@ -7,7 +7,7 @@ import google.generativeai as genai
 st.set_page_config(page_title="Oto Form Doldurucu", page_icon="📄", layout="centered")
 
 st.title("Yapay Zeka Destekli Otonom Form Doldurucu")
-st.write("Word belgesini yükleyin; sistem boş alanları tespit edip kişisel bilgilerinizle otomatik doldursun.")
+st.write("Word belgesini yükleyin; sistem boş alanları tek seferde tespit edip bilgilerinizle doldursun.")
 
 if "GEMINI_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
@@ -44,29 +44,56 @@ if yuklenen_dosya is not None:
     if bos_alanlar:
         st.success(f"Belgede {len(bos_alanlar)} adet doldurulacak alan tespit edildi.")
         
-        if st.button("Formu Bilgilerinizle Otomatik Doldur"):
-            with st.spinner("Yapay zeka kişisel verilerinizi kullanarak formu işliyor..."):
+        if st.button("Formu Tek İstekle Otomatik Doldur"):
+            with st.spinner("Yapay zeka tüm alanları tek seferde işliyor..."):
                 try:
                     model = genai.GenerativeModel("gemini-3.8-flash")
                     
-                    # Kullanıcı bağlamı
                     kullanici_baglami = (
                         "Kişi Bilgileri: Prof. Ufuk Tolga Savaş, "
                         "Kurum: Hacettepe Üniversitesi Güzel Sanatlar Fakültesi Seramik Bölümü, "
                         "Unvan: Profesör / Öğretim Üyesi."
                     )
                     
-                    for alan in bos_alanlar:
-                        etiket = alan["etiket"]
-                        prompt = f"{kullanici_baglami}\n\nBu bağlamı kullanarak şu form alanı için uygun bilgiyi kısa ve net bir şekilde üret: {etiket}"
-                        cevap = model.generate_content(prompt)
-                        deger = cevap.text.strip()
-                        
-                        hedef_hucre = doc.tables[alan["tablo"]].cell(alan["satir"], alan["sutun"])
-                        hedef_hucre.text = deger
+                    etiketler_listesi = [f"{i+1}. {alan['etiket']}" for i, alan in enumerate(bos_alanlar)]
+                    etiketler_metni = "\n".join(etiketler_listesi)
+                    
+                    prompt = f"""
+{kullanici_baglami}
+
+Aşağıda bir akademik formda yer alan boş alanların etiketleri listelenmiştir. Her bir etiket için bu kişisel bilgilere uygun değerleri üret. 
+Yanıtını tam olarak şu formatta ver (her satıra sıra numarası ve karşısına iki nokta üst üste koyarak değeri yaz, başka açıklama ekleme):
+1: Değer
+2: Değer
+...
+
+Etiketler:
+{etiketler_metni}
+"""
+                    cevap = model.generate_content(prompt)
+                    cevap_metni = cevap.text.strip()
+                    
+                    satirlar = cevap_metni.split("\n")
+                    degerler_sozlugu = {}
+                    for satir in satirlar:
+                        if ":" in satir:
+                            parcalar = satir.split(":", 1)
+                            try:
+                                sira = int(parcalar[0].strip().replace(".", ""))
+                                deger = parcalar[1].strip()
+                                degerler_sozlugu[sira] = deger
+                            except:
+                                continue
+                    
+                    for i, alan in enumerate(bos_alanlar):
+                        sira_no = i + 1
+                        if sira_no in degerler_sozlugu:
+                            deger = degerler_sozlugu[sira_no]
+                            hedef_hucre = doc.tables[alan["tablo"]].cell(alan["satir"], alan["sutun"])
+                            hedef_hucre.text = deger
 
                     doc.save(output_path)
-                    st.success("Form başarıyla ve kişisel bilgilerinizle dolduruldu.")
+                    st.success("Form tek sorguda başarıyla dolduruldu.")
 
                     with open(output_path, "rb") as f:
                         st.download_button(
